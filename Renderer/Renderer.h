@@ -61,6 +61,9 @@ private:
     void CreateRTVs(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12DescriptorHeap>& rtvHeap, _In_ ComPtr<IDXGISwapChain3>& swapChain, UINT& rtvDescriptorSize, _Out_ ComPtr<ID3D12Resource>* renderTargets);
 
     void LoadAssets();
+    void CreateCommandList(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12CommandAllocator>& commandAllocator, _Out_ ComPtr<ID3D12GraphicsCommandList>& commandList);
+    void CreateFence(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12Fence>& fence, _Out_ HANDLE& fenceEvent, _Out_ UINT64& fenceValue);
+
     void PopulateCommandList();
     void WaitForPreviousFrame();
 };

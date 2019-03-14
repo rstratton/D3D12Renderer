@@ -146,22 +146,28 @@ void Renderer::CreateRTVs(ComPtr<ID3D12Device>& device, ComPtr<ID3D12DescriptorH
 // Load the sample assets.
 void Renderer::LoadAssets()
 {
+    CreateCommandList(m_device, m_commandAllocator, m_commandList);
+    CreateFence(m_device, m_fence, m_fenceEvent, m_fenceValue);
+}
+
+void Renderer::CreateCommandList(ComPtr<ID3D12Device>& device, ComPtr<ID3D12CommandAllocator>& commandAllocator, ComPtr<ID3D12GraphicsCommandList>& commandList) {
     // Create the command list.
-    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
+    ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
 
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
-    ThrowIfFailed(m_commandList->Close());
+    ThrowIfFailed(commandList->Close());
+}
 
+void Renderer::CreateFence(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Fence>& fence, HANDLE& fenceEvent, UINT64& fenceValue) {
     // Create synchronization objects.
     {
-        ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-        m_fenceValue = 1;
+        ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+        fenceValue = 1;
 
         // Create an event handle to use for frame synchronization.
-        m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if (m_fenceEvent == nullptr)
-        {
+        fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if (fenceEvent == nullptr) {
             ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
         }
     }
