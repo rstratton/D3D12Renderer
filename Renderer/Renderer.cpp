@@ -15,7 +15,9 @@
 Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     DXApplication(width, height, name),
     m_frameIndex(0),
-    m_rtvDescriptorSize(0)
+    m_rtvDescriptorSize(0),
+    m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+    m_rect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height))
 {
 }
 
