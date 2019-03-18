@@ -44,6 +44,7 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
+    ComPtr<ID3D12RootSignature> m_rootSignature;
     UINT m_rtvDescriptorSize;
 
     // Synchronization objects.
@@ -63,6 +64,8 @@ private:
     void LoadAssets();
     void CreateCommandList(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12CommandAllocator>& commandAllocator, _Out_ ComPtr<ID3D12GraphicsCommandList>& commandList);
     void CreateFence(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12Fence>& fence, _Out_ HANDLE& fenceEvent, _Out_ UINT64& fenceValue);
+    void CreateRootSignature(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12RootSignature>& rootSignature);
+    void CreatePSO(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12RootSignature>& rootSignature, _Out_ ComPtr<ID3D12PipelineState>& pipelineState);
 
     void PopulateCommandList();
     void WaitForPreviousFrame();

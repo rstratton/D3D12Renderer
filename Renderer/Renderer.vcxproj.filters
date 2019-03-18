@@ -47,5 +47,13 @@
     <Filter Include="Assets">
       <UniqueIdentifier>{68944920-6c74-4f8c-9c2e-56142110575f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{cf2fa420-2ced-4bcb-97c9-7afc167b3d7b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="shaders.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>
