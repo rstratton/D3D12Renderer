@@ -13,6 +13,8 @@
 
 #include "DXApplication.h"
 
+using namespace DirectX;
+
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
 // for the GPU lifetime of resources to avoid destroying objects that may still be
@@ -33,6 +35,12 @@ public:
 private:
     static const UINT FrameCount = 2;
 
+    struct Vertex
+    {
+        XMFLOAT3 position;
+        XMFLOAT4 color;
+    };
+
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_rect;
@@ -46,6 +54,10 @@ private:
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     UINT m_rtvDescriptorSize;
+
+    // App resources.
+    ComPtr<ID3D12Resource> m_vertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 
     // Synchronization objects.
     UINT m_frameIndex;
@@ -62,10 +74,11 @@ private:
     void CreateRTVs(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12DescriptorHeap>& rtvHeap, _In_ ComPtr<IDXGISwapChain3>& swapChain, UINT& rtvDescriptorSize, _Out_ ComPtr<ID3D12Resource>* renderTargets);
 
     void LoadAssets();
-    void CreateCommandList(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12CommandAllocator>& commandAllocator, _Out_ ComPtr<ID3D12GraphicsCommandList>& commandList);
+    void CreateCommandList(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12PipelineState>& pipelineState, _In_ ComPtr<ID3D12CommandAllocator>& commandAllocator, _Out_ ComPtr<ID3D12GraphicsCommandList>& commandList);
     void CreateFence(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12Fence>& fence, _Out_ HANDLE& fenceEvent, _Out_ UINT64& fenceValue);
     void CreateRootSignature(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12RootSignature>& rootSignature);
     void CreatePSO(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12RootSignature>& rootSignature, _Out_ ComPtr<ID3D12PipelineState>& pipelineState);
+    void CreateVertexBuffer(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12Resource>& vertexBuffer, _Out_ D3D12_VERTEX_BUFFER_VIEW & vertexBufferView);
 
     void PopulateCommandList();
     void WaitForPreviousFrame();

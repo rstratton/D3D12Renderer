@@ -146,15 +146,16 @@ void Renderer::CreateRTVs(ComPtr<ID3D12Device>& device, ComPtr<ID3D12DescriptorH
 // Load the sample assets.
 void Renderer::LoadAssets()
 {
-    CreateCommandList(m_device, m_commandAllocator, m_commandList);
     CreateFence(m_device, m_fence, m_fenceEvent, m_fenceValue);
     CreateRootSignature(m_device, m_rootSignature);
     CreatePSO(m_device, m_rootSignature, m_pipelineState);
+    CreateCommandList(m_device, m_pipelineState, m_commandAllocator, m_commandList);
+    CreateVertexBuffer(m_device, m_vertexBuffer, m_vertexBufferView);
 }
 
-void Renderer::CreateCommandList(ComPtr<ID3D12Device>& device, ComPtr<ID3D12CommandAllocator>& commandAllocator, ComPtr<ID3D12GraphicsCommandList>& commandList) {
+void Renderer::CreateCommandList(ComPtr<ID3D12Device>& device, ComPtr<ID3D12PipelineState>& pipelineState, ComPtr<ID3D12CommandAllocator>& commandAllocator, ComPtr<ID3D12GraphicsCommandList>& commandList) {
     // Create the command list.
-    ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
+    ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), pipelineState.Get(), IID_PPV_ARGS(&commandList)));
 
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
@@ -223,6 +224,42 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     psoDesc.SampleDesc.Count = 1;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
+}
+
+void Renderer::CreateVertexBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Resource>& vertexBuffer, D3D12_VERTEX_BUFFER_VIEW& vertexBufferView) {
+    // Define the geometry for a triangle.
+    Vertex triangleVertices[] =
+    {
+        { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+        { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+        { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+    };
+
+    const UINT vertexBufferSize = sizeof(triangleVertices);
+
+    // Note: using upload heaps to transfer static data like vert buffers is not 
+    // recommended. Every time the GPU needs it, the upload heap will be marshalled 
+    // over. Please read up on Default Heap usage. An upload heap is used here for 
+    // code simplicity and because there are very few verts to actually transfer.
+    ThrowIfFailed(device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+        D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&vertexBuffer)));
+
+    // Copy the triangle data to the vertex buffer.
+    UINT8* pVertexDataBegin;
+    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+    ThrowIfFailed(vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+    memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
+    vertexBuffer->Unmap(0, nullptr);
+
+    // Initialize the vertex buffer view.
+    vertexBufferView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+    vertexBufferView.StrideInBytes = sizeof(Vertex);
+    vertexBufferView.SizeInBytes = vertexBufferSize;
 }
 
 // Update frame-based values.
