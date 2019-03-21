@@ -82,7 +82,6 @@ void Renderer::CreateDevice(ComPtr<IDXGIFactory4> &factory, ComPtr<ID3D12Device>
 }
 
 void Renderer::CreateCommandQueue(ComPtr<ID3D12Device>& device, ComPtr<ID3D12CommandQueue>& commandQueue) {
-    // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -91,7 +90,6 @@ void Renderer::CreateCommandQueue(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Com
 }
 
 void Renderer::CreateSwapChain(ComPtr<IDXGIFactory4> &factory, ComPtr<IDXGISwapChain3>& swapChain, UINT& frameIndex) {
-    // Describe and create the swap chain.
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
     swapChainDesc.BufferCount = FrameCount;
     swapChainDesc.Width = m_width;
@@ -119,7 +117,6 @@ void Renderer::CreateSwapChain(ComPtr<IDXGIFactory4> &factory, ComPtr<IDXGISwapC
 }
 
 void Renderer::CreateRTVDescriptorHeap(ComPtr<ID3D12Device>& device, ComPtr<ID3D12DescriptorHeap>& rtvHeap, UINT& rtvDescriptorSize) {
-    // Describe and create a render target view (RTV) descriptor heap.
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
     rtvHeapDesc.NumDescriptors = FrameCount;
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
@@ -130,16 +127,13 @@ void Renderer::CreateRTVDescriptorHeap(ComPtr<ID3D12Device>& device, ComPtr<ID3D
 }
 
 void Renderer::CreateRTVs(ComPtr<ID3D12Device>& device, ComPtr<ID3D12DescriptorHeap>& rtvHeap, ComPtr<IDXGISwapChain3>& swapChain, UINT& rtvDescriptorSize, ComPtr<ID3D12Resource>* renderTargets) {
-    // Create frame resources.
-    {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
-        // Create a RTV for each frame.
-        for (UINT n = 0; n < FrameCount; n++) {
-            ThrowIfFailed(swapChain->GetBuffer(n, IID_PPV_ARGS(&renderTargets[n])));
-            device->CreateRenderTargetView(renderTargets[n].Get(), nullptr, rtvHandle);
-            rtvHandle.Offset(1, rtvDescriptorSize);
-        }
+    // Create a RTV for each frame.
+    for (UINT n = 0; n < FrameCount; n++) {
+        ThrowIfFailed(swapChain->GetBuffer(n, IID_PPV_ARGS(&renderTargets[n])));
+        device->CreateRenderTargetView(renderTargets[n].Get(), nullptr, rtvHandle);
+        rtvHandle.Offset(1, rtvDescriptorSize);
     }
 }
 
@@ -155,7 +149,6 @@ void Renderer::LoadAssets()
 }
 
 void Renderer::CreateCommandList(ComPtr<ID3D12Device>& device, ComPtr<ID3D12PipelineState>& pipelineState, ComPtr<ID3D12CommandAllocator>& commandAllocator, ComPtr<ID3D12GraphicsCommandList>& commandList) {
-    // Create the command list.
     ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), pipelineState.Get(), IID_PPV_ARGS(&commandList)));
 
     // Command lists are created in the recording state, but there is nothing
@@ -164,16 +157,13 @@ void Renderer::CreateCommandList(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Pipe
 }
 
 void Renderer::CreateFence(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Fence>& fence, HANDLE& fenceEvent, UINT64& fenceValue) {
-    // Create synchronization objects.
-    {
-        ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-        fenceValue = 1;
+    ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+    fenceValue = 1;
 
-        // Create an event handle to use for frame synchronization.
-        fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if (fenceEvent == nullptr) {
-            ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-        }
+    // Create an event handle to use for frame synchronization.
+    fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (fenceEvent == nullptr) {
+        ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
     }
 }
 
