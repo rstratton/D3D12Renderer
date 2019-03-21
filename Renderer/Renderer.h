@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include "DXApplication.h"
 #include "SceneObject.h"
 
 using namespace DirectX;
@@ -56,10 +55,6 @@ private:
     ComPtr<ID3D12RootSignature> m_rootSignature;
     UINT m_rtvDescriptorSize;
 
-    // App resources.
-    ComPtr<ID3D12Resource> m_vertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
-
     // Synchronization objects.
     UINT m_frameIndex;
     HANDLE m_fenceEvent;
@@ -81,7 +76,6 @@ private:
     void CreateFence(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12Fence>& fence, _Out_ HANDLE& fenceEvent, _Out_ UINT64& fenceValue);
     void CreateRootSignature(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12RootSignature>& rootSignature);
     void CreatePSO(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12RootSignature>& rootSignature, _Out_ ComPtr<ID3D12PipelineState>& pipelineState);
-    void CreateVertexBuffer(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12Resource>& vertexBuffer, _Out_ D3D12_VERTEX_BUFFER_VIEW & vertexBufferView);
 
     void PopulateCommandList();
     void WaitForPreviousFrame();

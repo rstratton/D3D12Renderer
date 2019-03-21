@@ -158,7 +158,7 @@ void Renderer::LoadAssets()
     CreateRootSignature(m_device, m_rootSignature);
     CreatePSO(m_device, m_rootSignature, m_pipelineState);
     CreateCommandList(m_device, m_pipelineState, m_commandAllocator, m_commandList);
-    CreateVertexBuffer(m_device, m_vertexBuffer, m_vertexBufferView);
+    m_sceneObject.UploadVertices(m_device);
     // TODO: the hello triangle sample inserts a WaitForPreviousFrame here, is that necessary?  
 }
 
@@ -231,34 +231,6 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
 }
 
-void Renderer::CreateVertexBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Resource>& vertexBuffer, D3D12_VERTEX_BUFFER_VIEW& vertexBufferView) {
-    const UINT vertexBufferSize = m_sceneObject.m_vertexCount * sizeof(SceneObject::Vertex);
-
-    // Note: using upload heaps to transfer static data like vert buffers is not 
-    // recommended. Every time the GPU needs it, the upload heap will be marshalled 
-    // over. Please read up on Default Heap usage. An upload heap is used here for 
-    // code simplicity and because there are very few verts to actually transfer.
-    ThrowIfFailed(device->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&vertexBuffer)));
-
-    // Copy the triangle data to the vertex buffer.
-    UINT8* pVertexDataBegin;
-    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-    ThrowIfFailed(vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-    memcpy(pVertexDataBegin, m_sceneObject.m_vertices, vertexBufferSize);
-    vertexBuffer->Unmap(0, nullptr);
-
-    // Initialize the vertex buffer view.
-    vertexBufferView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-    vertexBufferView.StrideInBytes = sizeof(Vertex);
-    vertexBufferView.SizeInBytes = vertexBufferSize;
-}
-
 // Update frame-based values.
 void Renderer::OnUpdate()
 {
@@ -315,7 +287,7 @@ void Renderer::PopulateCommandList()
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+    m_commandList->IASetVertexBuffers(0, 1, &(m_sceneObject.m_vertexBufferView));
     m_commandList->DrawInstanced(3, 1, 0, 0);
 
     // Indicate that the back buffer will now be used to present.
