@@ -19,6 +19,20 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     m_rect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height))
 {
+    // Create vertices on the stack
+    SceneObject::Vertex vertices[3] = {
+        { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+        { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+        { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+    };
+    int vertexCount = 3;
+
+    // Create buffer on the heap to store vertices
+    m_sceneObject.m_vertices = new SceneObject::Vertex[vertexCount];
+
+    // Copy vertices and vertex count to SceneObject
+    std::copy(vertices, vertices + vertexCount, m_sceneObject.m_vertices);
+    m_sceneObject.m_vertexCount = vertexCount;
 }
 
 void Renderer::OnInit()
@@ -218,15 +232,7 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
 }
 
 void Renderer::CreateVertexBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Resource>& vertexBuffer, D3D12_VERTEX_BUFFER_VIEW& vertexBufferView) {
-    // Define the geometry for a triangle.
-    Vertex triangleVertices[] =
-    {
-        { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-        { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-        { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
-    };
-
-    const UINT vertexBufferSize = sizeof(triangleVertices);
+    const UINT vertexBufferSize = m_sceneObject.m_vertexCount * sizeof(SceneObject::Vertex);
 
     // Note: using upload heaps to transfer static data like vert buffers is not 
     // recommended. Every time the GPU needs it, the upload heap will be marshalled 
@@ -244,7 +250,7 @@ void Renderer::CreateVertexBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Res
     UINT8* pVertexDataBegin;
     CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
     ThrowIfFailed(vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-    memcpy(pVertexDataBegin, triangleVertices, sizeof(triangleVertices));
+    memcpy(pVertexDataBegin, m_sceneObject.m_vertices, vertexBufferSize);
     vertexBuffer->Unmap(0, nullptr);
 
     // Initialize the vertex buffer view.

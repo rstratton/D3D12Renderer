@@ -12,6 +12,7 @@
 #pragma once
 
 #include "DXApplication.h"
+#include "SceneObject.h"
 
 using namespace DirectX;
 
@@ -64,6 +65,8 @@ private:
     HANDLE m_fenceEvent;
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValue;
+
+    SceneObject m_sceneObject;
 
     void LoadPipeline();
     void CreateFactory(_Out_ ComPtr<IDXGIFactory4> &factory);
