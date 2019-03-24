@@ -27,11 +27,15 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     };
     int vertexCount = 3;
 
-    SceneObject* so = new SceneObject;
-    m_sceneObjects.push_back(so);
+    SceneObject* so1 = new SceneObject;
+    m_sceneObjects.push_back(so1);
+
+    SceneObject* so2 = new SceneObject;
+    m_sceneObjects.push_back(so2);
 
     // Create buffer on the heap to store vertices
     m_sceneObjects[0]->m_vertices = new SceneObject::Vertex[vertexCount];
+    m_sceneObjects[1]->m_vertices = new SceneObject::Vertex[vertexCount];
 
     m_sceneObjects[0]->m_constants.objToWorld = {
         1.0f, 0.0f, 0.0f, 0.0f,
@@ -40,9 +44,18 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
         0.0f, 0.0f, 0.0f, 1.0f
     };
 
+    m_sceneObjects[1]->m_constants.objToWorld = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+
     // Copy vertices and vertex count to SceneObject
     std::copy(vertices, vertices + vertexCount, m_sceneObjects[0]->m_vertices);
+    std::copy(vertices, vertices + vertexCount, m_sceneObjects[1]->m_vertices);
     m_sceneObjects[0]->m_vertexCount = vertexCount;
+    m_sceneObjects[1]->m_vertexCount = vertexCount;
 }
 
 void Renderer::OnInit()
@@ -331,6 +344,10 @@ void Renderer::PopulateCommandList()
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
+    const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    m_commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
     for (auto sceneObject : m_sceneObjects) {
         sceneObject->UploadConstants(m_device);
 
@@ -340,9 +357,6 @@ void Renderer::PopulateCommandList()
         m_commandList->SetGraphicsRootDescriptorTable(0, sceneObject->m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
         // Record commands.
-        const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-        m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-        m_commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         m_commandList->IASetVertexBuffers(0, 1, &(sceneObject->m_vertexBufferView));
         m_commandList->DrawInstanced(3, 1, 0, 0);
     }
