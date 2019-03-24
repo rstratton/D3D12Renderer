@@ -61,7 +61,7 @@ private:
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValue;
 
-    SceneObject m_sceneObject;
+    std::vector<SceneObject*> m_sceneObjects;
 
     void LoadPipeline();
     void CreateFactory(_Out_ ComPtr<IDXGIFactory4> &factory);

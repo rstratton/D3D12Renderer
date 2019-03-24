@@ -5,7 +5,7 @@ SceneObject::SceneObject() {};
 
 SceneObject::~SceneObject()
 {
-    free(m_vertices);
+    if(!m_vertices) free(m_vertices);
 }
 
 void SceneObject::UploadVertices(const ComPtr<ID3D12Device>& device) {

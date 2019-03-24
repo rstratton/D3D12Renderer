@@ -27,10 +27,13 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     };
     int vertexCount = 3;
 
-    // Create buffer on the heap to store vertices
-    m_sceneObject.m_vertices = new SceneObject::Vertex[vertexCount];
+    SceneObject* so = new SceneObject;
+    m_sceneObjects.push_back(so);
 
-    m_sceneObject.m_constants.objToWorld = {
+    // Create buffer on the heap to store vertices
+    m_sceneObjects[0]->m_vertices = new SceneObject::Vertex[vertexCount];
+
+    m_sceneObjects[0]->m_constants.objToWorld = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
@@ -38,8 +41,8 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     };
 
     // Copy vertices and vertex count to SceneObject
-    std::copy(vertices, vertices + vertexCount, m_sceneObject.m_vertices);
-    m_sceneObject.m_vertexCount = vertexCount;
+    std::copy(vertices, vertices + vertexCount, m_sceneObjects[0]->m_vertices);
+    m_sceneObjects[0]->m_vertexCount = vertexCount;
 }
 
 void Renderer::OnInit()
@@ -165,7 +168,9 @@ void Renderer::LoadAssets()
     CreateRootSignature(m_device, m_rootSignature);
     CreatePSO(m_device, m_rootSignature, m_pipelineState);
     CreateCommandList(m_device, m_pipelineState, m_commandAllocator, m_commandList);
-    m_sceneObject.UploadVertices(m_device);
+    for (auto sceneObject : m_sceneObjects) {
+        sceneObject->UploadVertices(m_device);
+    }
     // TODO: the hello triangle sample inserts a WaitForPreviousFrame here, is that necessary?  
 }
 
@@ -275,15 +280,12 @@ void Renderer::OnUpdate()
         0.01f, 0.00, 0.0f, 0.0f
     };
 
-    m_sceneObject.m_constants.objToWorld += offset;
+    m_sceneObjects[0]->m_constants.objToWorld += offset;
 }
 
 // Render the scene.
 void Renderer::OnRender()
 {
-    // Upload latest constant data.
-    m_sceneObject.UploadConstants(m_device);
-
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList();
 
@@ -320,11 +322,6 @@ void Renderer::PopulateCommandList()
 
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-    ID3D12DescriptorHeap* ppHeaps[] = { m_sceneObject.m_descriptorHeap.Get() };
-    m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-
-    m_commandList->SetGraphicsRootDescriptorTable(0, m_sceneObject.m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_rect);
 
@@ -334,12 +331,21 @@ void Renderer::PopulateCommandList()
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
-    // Record commands.
-    const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    m_commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->IASetVertexBuffers(0, 1, &(m_sceneObject.m_vertexBufferView));
-    m_commandList->DrawInstanced(3, 1, 0, 0);
+    for (auto sceneObject : m_sceneObjects) {
+        sceneObject->UploadConstants(m_device);
+
+        ID3D12DescriptorHeap* ppHeaps[] = { sceneObject->m_descriptorHeap.Get() };
+        m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+        m_commandList->SetGraphicsRootDescriptorTable(0, sceneObject->m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+        // Record commands.
+        const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+        m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+        m_commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_commandList->IASetVertexBuffers(0, 1, &(sceneObject->m_vertexBufferView));
+        m_commandList->DrawInstanced(3, 1, 0, 0);
+    }
 
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
