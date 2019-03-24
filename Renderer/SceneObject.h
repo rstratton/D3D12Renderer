@@ -20,6 +20,7 @@ public:
     ~SceneObject();
 
     void UploadVertices(const ComPtr<ID3D12Device>& device);
+    void UploadConstants(const ComPtr<ID3D12Device>& device);
 
     // Vertex-related state
     Vertex* m_vertices;
@@ -29,4 +30,9 @@ public:
 
     // Constant-related state
     Constants m_constants;
+    ComPtr<ID3D12Resource> m_constantBuffer;
+    UINT8* m_pConstantBufferData;
+
+    // Descriptor heap for this object
+    ComPtr<ID3D12DescriptorHeap> m_descriptorHeap;
 };

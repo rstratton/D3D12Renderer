@@ -30,6 +30,13 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     // Create buffer on the heap to store vertices
     m_sceneObject.m_vertices = new SceneObject::Vertex[vertexCount];
 
+    m_sceneObject.m_constants.objToWorld = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+
     // Copy vertices and vertex count to SceneObject
     std::copy(vertices, vertices + vertexCount, m_sceneObject.m_vertices);
     m_sceneObject.m_vertexCount = vertexCount;
@@ -183,13 +190,40 @@ void Renderer::CreateFence(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Fence>& fe
 
 void Renderer::CreateRootSignature(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignature>& rootSignature)
 {
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+    CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+
+    ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+    rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+
+    // Allow input layout and deny uneccessary access to certain pipeline stages.
+    D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
 
     ComPtr<ID3DBlob> signature;
     ComPtr<ID3DBlob> error;
-    ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+    ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, GetRootSignatureVersion(device), &signature, &error));
     ThrowIfFailed(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
+}
+
+D3D_ROOT_SIGNATURE_VERSION Renderer::GetRootSignatureVersion(const ComPtr<ID3D12Device>& device) {
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+    featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+    if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+    {
+        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+    }
+
+    return featureData.HighestVersion;
 }
 
 void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignature>& rootSignature, ComPtr<ID3D12PipelineState>& pipelineState) {
@@ -234,11 +268,22 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
 // Update frame-based values.
 void Renderer::OnUpdate()
 {
+    XMMATRIX offset = {
+        0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f,
+        0.01f, 0.00, 0.0f, 0.0f
+    };
+
+    m_sceneObject.m_constants.objToWorld += offset;
 }
 
 // Render the scene.
 void Renderer::OnRender()
 {
+    // Upload latest constant data.
+    m_sceneObject.UploadConstants(m_device);
+
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList();
 
@@ -274,6 +319,12 @@ void Renderer::PopulateCommandList()
     ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()));
 
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+
+    ID3D12DescriptorHeap* ppHeaps[] = { m_sceneObject.m_descriptorHeap.Get() };
+    m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+    m_commandList->SetGraphicsRootDescriptorTable(0, m_sceneObject.m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_rect);
 
