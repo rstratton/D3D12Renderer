@@ -13,7 +13,7 @@ public:
     };
 
     struct Constants {
-        XMMATRIX objToWorld;
+        XMMATRIX model;
     };
 
     SceneObject();

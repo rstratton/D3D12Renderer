@@ -37,14 +37,14 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_sceneObjects[0].m_vertices = new SceneObject::Vertex[vertexCount];
     m_sceneObjects[1].m_vertices = new SceneObject::Vertex[vertexCount];
 
-    m_sceneObjects[0].m_constants.objToWorld = {
+    m_sceneObjects[0].m_constants.model = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f
     };
 
-    m_sceneObjects[1].m_constants.objToWorld = {
+    m_sceneObjects[1].m_constants.model = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
@@ -58,15 +58,15 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_sceneObjects[1].m_vertexCount = vertexCount;
 
     // Initialize view and projection matrices
-    m_constants.projectionTransform.r[0] = { 1.0f, 0.0f, 0.0f, 0.0f };
-    m_constants.projectionTransform.r[1] = { 0.0f, m_aspectRatio, 0.0f, 0.0f };
-    m_constants.projectionTransform.r[2] = { 0.0f, 0.0f, 1.0f, 0.0f };
-    m_constants.projectionTransform.r[3] = { 0.0f, 0.0f, 1.0f, 1.0f };
+    m_constants.proj.r[0] = { 1.0f, 0.0f, 0.0f, 0.0f };
+    m_constants.proj.r[1] = { 0.0f, m_aspectRatio, 0.0f, 0.0f };
+    m_constants.proj.r[2] = { 0.0f, 0.0f, 1.0f, 0.0f };
+    m_constants.proj.r[3] = { 0.0f, 0.0f, 1.0f, 1.0f };
 
-    m_constants.viewTransform.r[0] = { 1.0f, 0.0f, 0.0f, 0.0f };
-    m_constants.viewTransform.r[1] = { 0.0f, 1.0f, 0.0f, 0.0f };
-    m_constants.viewTransform.r[2] = { 0.0f, 0.0f, 1.0f, 0.0f };
-    m_constants.viewTransform.r[3] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    m_constants.view.r[0] = { 1.0f, 0.0f, 0.0f, 0.0f };
+    m_constants.view.r[1] = { 0.0f, 1.0f, 0.0f, 0.0f };
+    m_constants.view.r[2] = { 0.0f, 0.0f, 1.0f, 0.0f };
+    m_constants.view.r[3] = { 0.0f, 0.0f, 0.0f, 1.0f };
 }
 
 void Renderer::OnInit()
@@ -324,7 +324,7 @@ void Renderer::OnUpdate()
         0.01f, 0.00, 0.0f, 0.0f
     };
 
-    m_sceneObjects[0].m_constants.objToWorld += offset;
+    m_sceneObjects[0].m_constants.model += offset;
 }
 
 // Render the scene.

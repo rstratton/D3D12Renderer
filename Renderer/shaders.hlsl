@@ -10,12 +10,12 @@
 //*********************************************************
 
 cbuffer GlobalConstants : register(b0) {
-    float4x4 viewTransform;
-    float4x4 projectionTransform;
+    float4x4 view;
+    float4x4 proj;
 }
 
 cbuffer SceneObjectConstants : register(b1) {
-    float4x4 objToWorld;
+    float4x4 model;
 };
 
 struct PSInput
@@ -28,8 +28,8 @@ PSInput VSMain(float4 position : POSITION, float4 color : COLOR)
 {
     PSInput result;
 
-    float4x4 m1 = mul(viewTransform, objToWorld);
-    float4x4 mvpMatrix = mul(projectionTransform, m1);
+    float4x4 mvMatrix = mul(view, model);
+    float4x4 mvpMatrix = mul(proj, mvMatrix);
 
     result.position = mul(mvpMatrix, position);
     result.color = color;
