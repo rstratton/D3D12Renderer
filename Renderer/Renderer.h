@@ -32,14 +32,13 @@ public:
     virtual void OnRender();
     virtual void OnDestroy();
 
+    struct Constants {
+        XMMATRIX viewTransform;
+        XMMATRIX projectionTransform;
+    };
+
 private:
     static const UINT FrameCount = 2;
-
-    struct Vertex
-    {
-        XMFLOAT3 position;
-        XMFLOAT4 color;
-    };
 
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
@@ -61,7 +60,11 @@ private:
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValue;
 
-    std::vector<SceneObject*> m_sceneObjects;
+    Constants m_constants;
+    ComPtr<ID3D12Resource> m_constantBuffer;
+    UINT8* m_pConstantBufferData;
+
+    std::vector<SceneObject> m_sceneObjects;
 
     void LoadPipeline();
     void CreateFactory(_Out_ ComPtr<IDXGIFactory4> &factory);
@@ -77,6 +80,7 @@ private:
     void CreateRootSignature(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12RootSignature>& rootSignature);
     D3D_ROOT_SIGNATURE_VERSION GetRootSignatureVersion(_In_ const ComPtr<ID3D12Device>& device);
     void CreatePSO(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12RootSignature>& rootSignature, _Out_ ComPtr<ID3D12PipelineState>& pipelineState);
+    void CreateGlobalConstants(_In_ const ComPtr<ID3D12Device>& device);
 
     void PopulateCommandList();
     void WaitForPreviousFrame();

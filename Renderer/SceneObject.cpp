@@ -3,10 +3,7 @@
 
 SceneObject::SceneObject() {};
 
-SceneObject::~SceneObject()
-{
-    if(!m_vertices) free(m_vertices);
-}
+SceneObject::~SceneObject() {};
 
 void SceneObject::UploadVertices(const ComPtr<ID3D12Device>& device) {
     const UINT bufferSize = m_vertexCount * sizeof(Vertex);

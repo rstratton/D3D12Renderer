@@ -21,30 +21,30 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
 {
     // Create vertices on the stack
     SceneObject::Vertex vertices[3] = {
-        { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-        { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-        { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+        { { 0.0f, 0.25f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+        { { 0.25f, -0.25f, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+        { { -0.25f, -0.25f, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
     };
     int vertexCount = 3;
 
-    SceneObject* so1 = new SceneObject;
+    SceneObject so1;
     m_sceneObjects.push_back(so1);
 
-    SceneObject* so2 = new SceneObject;
+    SceneObject so2;
     m_sceneObjects.push_back(so2);
 
     // Create buffer on the heap to store vertices
-    m_sceneObjects[0]->m_vertices = new SceneObject::Vertex[vertexCount];
-    m_sceneObjects[1]->m_vertices = new SceneObject::Vertex[vertexCount];
+    m_sceneObjects[0].m_vertices = new SceneObject::Vertex[vertexCount];
+    m_sceneObjects[1].m_vertices = new SceneObject::Vertex[vertexCount];
 
-    m_sceneObjects[0]->m_constants.objToWorld = {
+    m_sceneObjects[0].m_constants.objToWorld = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f
     };
 
-    m_sceneObjects[1]->m_constants.objToWorld = {
+    m_sceneObjects[1].m_constants.objToWorld = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
@@ -52,10 +52,21 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     };
 
     // Copy vertices and vertex count to SceneObject
-    std::copy(vertices, vertices + vertexCount, m_sceneObjects[0]->m_vertices);
-    std::copy(vertices, vertices + vertexCount, m_sceneObjects[1]->m_vertices);
-    m_sceneObjects[0]->m_vertexCount = vertexCount;
-    m_sceneObjects[1]->m_vertexCount = vertexCount;
+    std::copy(vertices, vertices + vertexCount, m_sceneObjects[0].m_vertices);
+    std::copy(vertices, vertices + vertexCount, m_sceneObjects[1].m_vertices);
+    m_sceneObjects[0].m_vertexCount = vertexCount;
+    m_sceneObjects[1].m_vertexCount = vertexCount;
+
+    // Initialize view and projection matrices
+    m_constants.projectionTransform.r[0] = { 1.0f, 0.0f, 0.0f, 0.0f };
+    m_constants.projectionTransform.r[1] = { 0.0f, m_aspectRatio, 0.0f, 0.0f };
+    m_constants.projectionTransform.r[2] = { 0.0f, 0.0f, 1.0f, 0.0f };
+    m_constants.projectionTransform.r[3] = { 0.0f, 0.0f, 1.0f, 1.0f };
+
+    m_constants.viewTransform.r[0] = { 1.0f, 0.0f, 0.0f, 0.0f };
+    m_constants.viewTransform.r[1] = { 0.0f, 1.0f, 0.0f, 0.0f };
+    m_constants.viewTransform.r[2] = { 0.0f, 0.0f, 1.0f, 0.0f };
+    m_constants.viewTransform.r[3] = { 0.0f, 0.0f, 0.0f, 1.0f };
 }
 
 void Renderer::OnInit()
@@ -181,9 +192,13 @@ void Renderer::LoadAssets()
     CreateRootSignature(m_device, m_rootSignature);
     CreatePSO(m_device, m_rootSignature, m_pipelineState);
     CreateCommandList(m_device, m_pipelineState, m_commandAllocator, m_commandList);
-    for (auto sceneObject : m_sceneObjects) {
-        sceneObject->UploadVertices(m_device);
+
+    for (int i = 0; i < m_sceneObjects.size(); ++i) {
+        auto& sceneObject = m_sceneObjects[i];
+        sceneObject.UploadVertices(m_device);
     }
+
+    CreateGlobalConstants(m_device);
     // TODO: the hello triangle sample inserts a WaitForPreviousFrame here, is that necessary?  
 }
 
@@ -209,10 +224,12 @@ void Renderer::CreateFence(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Fence>& fe
 void Renderer::CreateRootSignature(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignature>& rootSignature)
 {
     CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-    CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+    CD3DX12_ROOT_PARAMETER1 rootParameters[2];
 
-    ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-    rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+    rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);
+
+    ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+    rootParameters[1].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
 
     // Allow input layout and deny uneccessary access to certain pipeline stages.
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -283,6 +300,20 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
 }
 
+void Renderer::CreateGlobalConstants(const ComPtr<ID3D12Device>& device) {
+    // Create the constant buffer.
+    ThrowIfFailed(device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+        D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Buffer(1024 * 64),
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&m_constantBuffer)));
+
+    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+    ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pConstantBufferData)));
+}
+
 // Update frame-based values.
 void Renderer::OnUpdate()
 {
@@ -293,7 +324,7 @@ void Renderer::OnUpdate()
         0.01f, 0.00, 0.0f, 0.0f
     };
 
-    m_sceneObjects[0]->m_constants.objToWorld += offset;
+    m_sceneObjects[0].m_constants.objToWorld += offset;
 }
 
 // Render the scene.
@@ -347,17 +378,23 @@ void Renderer::PopulateCommandList()
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress());
 
-    for (auto sceneObject : m_sceneObjects) {
-        sceneObject->UploadConstants(m_device);
+    // Upload latest global constants
+    memcpy(m_pConstantBufferData, &m_constants, sizeof(m_constants));
 
-        ID3D12DescriptorHeap* ppHeaps[] = { sceneObject->m_descriptorHeap.Get() };
+    for (int i = 0; i < m_sceneObjects.size(); ++i) {
+        auto& sceneObject = m_sceneObjects[i];
+
+        sceneObject.UploadConstants(m_device);
+
+        ID3D12DescriptorHeap* ppHeaps[] = { sceneObject.m_descriptorHeap.Get() };
         m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
-        m_commandList->SetGraphicsRootDescriptorTable(0, sceneObject->m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+        m_commandList->SetGraphicsRootDescriptorTable(1, sceneObject.m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
         // Record commands.
-        m_commandList->IASetVertexBuffers(0, 1, &(sceneObject->m_vertexBufferView));
+        m_commandList->IASetVertexBuffers(0, 1, &(sceneObject.m_vertexBufferView));
         m_commandList->DrawInstanced(3, 1, 0, 0);
     }
 

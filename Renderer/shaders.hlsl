@@ -9,7 +9,12 @@
 //
 //*********************************************************
 
-cbuffer SceneObjectConstants : register(b0) {
+cbuffer GlobalConstants : register(b0) {
+    float4x4 viewTransform;
+    float4x4 projectionTransform;
+}
+
+cbuffer SceneObjectConstants : register(b1) {
     float4x4 objToWorld;
 };
 
@@ -23,7 +28,10 @@ PSInput VSMain(float4 position : POSITION, float4 color : COLOR)
 {
     PSInput result;
 
-    result.position = mul(objToWorld, position);
+    float4x4 m1 = mul(viewTransform, objToWorld);
+    float4x4 mvpMatrix = mul(projectionTransform, m1);
+
+    result.position = mul(mvpMatrix, position);
     result.color = color;
 
     return result;
