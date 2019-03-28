@@ -28,6 +28,8 @@
 #include "d3dx12.h"
 
 #include <string>
+#include <fstream>
+#include <sstream>
 #include <wrl.h>
 #include <shellapi.h>
 

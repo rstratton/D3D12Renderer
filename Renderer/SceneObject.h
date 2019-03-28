@@ -4,14 +4,14 @@
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
+struct Vertex {
+    XMFLOAT3 position;
+    XMFLOAT4 color;
+};
+
 class SceneObject
 {
 public:
-    struct Vertex {
-        XMFLOAT3 position;
-        XMFLOAT4 color;
-    };
-
     struct Constants {
         XMFLOAT4X4 model;
     };

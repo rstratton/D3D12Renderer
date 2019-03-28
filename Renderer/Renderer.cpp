@@ -11,6 +11,7 @@
 
 #include "stdafx.h"
 #include "Renderer.h"
+#include "ObjLoader.h"
 
 Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     DXApplication(width, height, name),
@@ -20,7 +21,7 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_rect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height))
 {
     // Create vertices on the stack
-    SceneObject::Vertex vertices[3] = {
+    Vertex vertices[3] = {
         { { 0.0f, 0.25f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
         { { 0.25f, -0.25f, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
         { { -0.25f, -0.25f, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
@@ -34,8 +35,9 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_sceneObjects.push_back(so2);
 
     // Create buffer on the heap to store vertices
-    m_sceneObjects[0].m_vertices = new SceneObject::Vertex[vertexCount];
-    m_sceneObjects[1].m_vertices = new SceneObject::Vertex[vertexCount];
+    m_sceneObjects[0].m_vertices = new Vertex[vertexCount];
+    //m_sceneObjects[1].m_vertices = new Vertex[vertexCount];
+    ObjLoader::Load(L"Resources\\dodecahedron.obj", &m_sceneObjects[1].m_vertices, m_sceneObjects[1].m_vertexCount);
 
     XMMATRIX model = XMMatrixTranslation(0.f, 0.f, 0.f);
     XMStoreFloat4x4(&m_sceneObjects[0].m_constants.model, model);
@@ -45,16 +47,14 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
 
     // Copy vertices and vertex count to SceneObject
     std::copy(vertices, vertices + vertexCount, m_sceneObjects[0].m_vertices);
-    std::copy(vertices, vertices + vertexCount, m_sceneObjects[1].m_vertices);
     m_sceneObjects[0].m_vertexCount = vertexCount;
-    m_sceneObjects[1].m_vertexCount = vertexCount;
 
     // Initialize view and projection matrices
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(110.f), m_aspectRatio, 0.001f, 1000.0f);
     XMStoreFloat4x4(&m_constants.proj, proj);
 
     XMMATRIX view = XMMatrixLookAtLH(
-        { 0.f, 0.f, -0.3f },
+        { 0.f, 0.f, -2.0f },
         { 0.f, 0.f, 0.f },
         { 0.f, 1.f, 0.f }
     );
@@ -312,6 +312,10 @@ void Renderer::OnUpdate()
     XMMATRIX offset = XMMatrixTranslation(0.01f, 0.0f, 0.0f);
     XMMATRIX model = XMLoadFloat4x4(&m_sceneObjects[0].m_constants.model);
     XMStoreFloat4x4(&m_sceneObjects[0].m_constants.model, model * offset);
+
+    XMMATRIX rotation = XMMatrixRotationY(0.01f);
+    model = XMLoadFloat4x4(&m_sceneObjects[1].m_constants.model);
+    XMStoreFloat4x4(&m_sceneObjects[1].m_constants.model, model * rotation);
 }
 
 // Render the scene.
@@ -387,7 +391,7 @@ void Renderer::PopulateCommandList()
 
         // Record commands.
         m_commandList->IASetVertexBuffers(0, 1, &(sceneObject.m_vertexBufferView));
-        m_commandList->DrawInstanced(3, 1, 0, 0);
+        m_commandList->DrawInstanced(sceneObject.m_vertexCount, 1, 0, 0);
     }
 
     // Indicate that the back buffer will now be used to present.
