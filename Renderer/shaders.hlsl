@@ -28,10 +28,10 @@ PSInput VSMain(float4 position : POSITION, float4 color : COLOR)
 {
     PSInput result;
 
-    float4x4 mvMatrix = mul(view, model);
-    float4x4 mvpMatrix = mul(proj, mvMatrix);
+    float4x4 mvMatrix = mul(model, view);
+    float4x4 mvpMatrix = mul(mvMatrix, proj);
 
-    result.position = mul(mvpMatrix, position);
+    result.position = mul(position, mvpMatrix);
     result.color = color;
 
     return result;

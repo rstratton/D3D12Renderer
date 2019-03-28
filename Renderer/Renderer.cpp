@@ -37,19 +37,11 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_sceneObjects[0].m_vertices = new SceneObject::Vertex[vertexCount];
     m_sceneObjects[1].m_vertices = new SceneObject::Vertex[vertexCount];
 
-    m_sceneObjects[0].m_constants.model = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
+    XMMATRIX model = XMMatrixTranslation(0.f, 0.f, 0.f);
+    XMStoreFloat4x4(&m_sceneObjects[0].m_constants.model, model);
 
-    m_sceneObjects[1].m_constants.model = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
+    model = XMMatrixTranslation(0.f, 0.f, 0.f);
+    XMStoreFloat4x4(&m_sceneObjects[1].m_constants.model, model);
 
     // Copy vertices and vertex count to SceneObject
     std::copy(vertices, vertices + vertexCount, m_sceneObjects[0].m_vertices);
@@ -58,13 +50,13 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_sceneObjects[1].m_vertexCount = vertexCount;
 
     // Initialize view and projection matrices
-    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(110.f), m_aspectRatio, 0.000000001f, 1000.f);
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(110.f), m_aspectRatio, 0.001f, 1000.0f);
     XMStoreFloat4x4(&m_constants.proj, proj);
 
     XMMATRIX view = XMMatrixLookAtLH(
-        { 0.f, 0.f, -3.f, 0.0f },
-        { 0.f, 0.f, 0.f, 0.0f },
-        { 0.f, 1.f, 0.f, 0.0f }
+        { 0.f, 0.f, -0.3f },
+        { 0.f, 0.f, 0.f },
+        { 0.f, 1.f, 0.f }
     );
     XMStoreFloat4x4(&m_constants.view, view);
 }
@@ -317,15 +309,9 @@ void Renderer::CreateGlobalConstants(const ComPtr<ID3D12Device>& device) {
 // Update frame-based values.
 void Renderer::OnUpdate()
 {
-    XMMATRIX offset = {
-        0.0f, 0.0f, 0.0f, 0.01f,
-        0.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 0.00, 0.0f, 0.0f
-    };
+    XMMATRIX offset = XMMatrixTranslation(0.01f, 0.0f, 0.0f);
     XMMATRIX model = XMLoadFloat4x4(&m_sceneObjects[0].m_constants.model);
-    model += offset;
-    XMStoreFloat4x4(&m_sceneObjects[0].m_constants.model, model);
+    XMStoreFloat4x4(&m_sceneObjects[0].m_constants.model, model * offset);
 }
 
 // Render the scene.
