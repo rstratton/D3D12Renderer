@@ -68,5 +68,9 @@ void SceneObject::UploadConstants(const ComPtr<ID3D12Device>& device) {
     }
 
     // Copy constant data to constant buffer
-    memcpy(m_pConstantBufferData, &m_constants, sizeof(m_constants));
+    Constants constants;
+    XMMATRIX model = XMMatrixTranspose(XMLoadFloat4x4(&m_constants.model));
+    XMStoreFloat4x4(&constants.model, model);
+
+    memcpy(m_pConstantBufferData, &constants, sizeof(constants));
 }

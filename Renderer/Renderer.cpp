@@ -58,15 +58,15 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_sceneObjects[1].m_vertexCount = vertexCount;
 
     // Initialize view and projection matrices
-    m_constants.proj.r[0] = { 1.0f, 0.0f, 0.0f, 0.0f };
-    m_constants.proj.r[1] = { 0.0f, m_aspectRatio, 0.0f, 0.0f };
-    m_constants.proj.r[2] = { 0.0f, 0.0f, 1.0f, 0.0f };
-    m_constants.proj.r[3] = { 0.0f, 0.0f, 1.0f, 1.0f };
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(110.f), m_aspectRatio, 0.000000001f, 1000.f);
+    XMStoreFloat4x4(&m_constants.proj, proj);
 
-    m_constants.view.r[0] = { 1.0f, 0.0f, 0.0f, 0.0f };
-    m_constants.view.r[1] = { 0.0f, 1.0f, 0.0f, 0.0f };
-    m_constants.view.r[2] = { 0.0f, 0.0f, 1.0f, 0.0f };
-    m_constants.view.r[3] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    XMMATRIX view = XMMatrixLookAtLH(
+        { 0.f, 0.f, -3.f, 0.0f },
+        { 0.f, 0.f, 0.f, 0.0f },
+        { 0.f, 1.f, 0.f, 0.0f }
+    );
+    XMStoreFloat4x4(&m_constants.view, view);
 }
 
 void Renderer::OnInit()
@@ -318,13 +318,14 @@ void Renderer::CreateGlobalConstants(const ComPtr<ID3D12Device>& device) {
 void Renderer::OnUpdate()
 {
     XMMATRIX offset = {
+        0.0f, 0.0f, 0.0f, 0.01f,
         0.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 0.0f,
-        0.01f, 0.00, 0.0f, 0.0f
+        0.0f, 0.00, 0.0f, 0.0f
     };
-
-    m_sceneObjects[0].m_constants.model += offset;
+    XMMATRIX model = XMLoadFloat4x4(&m_sceneObjects[0].m_constants.model);
+    model += offset;
+    XMStoreFloat4x4(&m_sceneObjects[0].m_constants.model, model);
 }
 
 // Render the scene.
@@ -381,7 +382,12 @@ void Renderer::PopulateCommandList()
     m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress());
 
     // Upload latest global constants
-    memcpy(m_pConstantBufferData, &m_constants, sizeof(m_constants));
+    Constants constants;
+    XMMATRIX view = XMMatrixTranspose(XMLoadFloat4x4(&m_constants.view));
+    XMMATRIX proj = XMMatrixTranspose(XMLoadFloat4x4(&m_constants.proj));
+    XMStoreFloat4x4(&constants.view, view);
+    XMStoreFloat4x4(&constants.proj, proj);
+    memcpy(m_pConstantBufferData, &constants, sizeof(constants));
 
     for (int i = 0; i < m_sceneObjects.size(); ++i) {
         auto& sceneObject = m_sceneObjects[i];

@@ -33,8 +33,8 @@ public:
     virtual void OnDestroy();
 
     struct Constants {
-        XMMATRIX view;
-        XMMATRIX proj;
+        XMFLOAT4X4 view;
+        XMFLOAT4X4 proj;
     };
 
 private:

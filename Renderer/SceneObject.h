@@ -13,7 +13,7 @@ public:
     };
 
     struct Constants {
-        XMMATRIX model;
+        XMFLOAT4X4 model;
     };
 
     SceneObject();
