@@ -67,25 +67,25 @@ vector<ObjFace> ObjLoader::parseOBJ(const wstring fname) {
     vector<ObjFace> faces;
 
     while (getline(file, str)) {
-        if (str[0] == '#') {
-            continue;
-        }
-
         istringstream iss(str);
         string prefix;
         iss >> prefix;
 
+        // OBJ supports W-component for vertices, 2/3 texcoord components, faces with more than 3 vertices, etc.
+        // For now, only support the subset of OBJ that we're expecting, and blow up if we receive unexpected input
         if (prefix == "v") {
             ObjVert vert;
             iss >> vert.x;
             iss >> vert.y;
             iss >> vert.z;
+            assert(iss.eof() && "ObjLoader: Received more vertex data than expected");
             vertices.push_back(vert);
         }
         else if (prefix == "vt") {
             ObjTexCoord tex;
             iss >> tex.u;
             iss >> tex.v;
+            assert(iss.eof() && "ObjLoader: Received more tex coord data than expected");
             texes.push_back(tex);
         }
         else if (prefix == "vn") {
@@ -93,12 +93,15 @@ vector<ObjFace> ObjLoader::parseOBJ(const wstring fname) {
             iss >> normal.x;
             iss >> normal.y;
             iss >> normal.z;
+            assert(iss.eof() && "ObjLoader: Received more normal data than expected");
             normals.push_back(normal);
         }
         else if (prefix == "f") {
             ObjFace face;
             string vertBundleString;
-            for (int i = 0; i < 5; ++i) {
+
+            // Hard-coding that we expect only 3 vertices per face
+            for (int i = 0; i < 3; ++i) {
                 iss >> vertBundleString;
 
                 stringstream vertBundleStream(vertBundleString);
@@ -121,7 +124,12 @@ vector<ObjFace> ObjLoader::parseOBJ(const wstring fname) {
                     }
                 );
             }
+
+            assert(iss.eof() && "ObjLoader: Received more face vertices than expected");
             faces.push_back(face);
+        }
+        else {
+            continue;
         }
     }
 

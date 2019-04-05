@@ -36,7 +36,6 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
 
     // Create buffer on the heap to store vertices
     m_sceneObjects[0].m_vertices = new Vertex[vertexCount];
-    //m_sceneObjects[1].m_vertices = new Vertex[vertexCount];
     ObjLoader::Load(L"Resources\\dodecahedron.obj", &m_sceneObjects[1].m_vertices, m_sceneObjects[1].m_vertexCount);
 
     XMMATRIX model = XMMatrixTranslation(0.f, 0.f, 0.f);
