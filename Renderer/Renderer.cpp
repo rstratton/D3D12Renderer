@@ -20,40 +20,29 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     m_rect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height))
 {
-    // Create vertices on the stack
-    Vertex vertices[3] = {
-        { { 0.0f, 0.25f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-        { { 0.25f, -0.25f, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-        { { -0.25f, -0.25f, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
-    };
-    int vertexCount = 3;
-
     SceneObject so1;
     m_sceneObjects.push_back(so1);
 
     SceneObject so2;
     m_sceneObjects.push_back(so2);
 
-    // Create buffer on the heap to store vertices
-    m_sceneObjects[0].m_vertices = new Vertex[vertexCount];
+    // Load scene object geometry
+    ObjLoader::Load(L"Resources\\sphere.obj", &m_sceneObjects[0].m_vertices, m_sceneObjects[0].m_vertexCount);
     ObjLoader::Load(L"Resources\\dodecahedron.obj", &m_sceneObjects[1].m_vertices, m_sceneObjects[1].m_vertexCount);
 
+    // Init scene object constants
     XMMATRIX model = XMMatrixTranslation(0.f, 0.f, 0.f);
     XMStoreFloat4x4(&m_sceneObjects[0].m_constants.model, model);
 
     model = XMMatrixTranslation(0.f, 0.f, 0.f);
     XMStoreFloat4x4(&m_sceneObjects[1].m_constants.model, model);
 
-    // Copy vertices and vertex count to SceneObject
-    std::copy(vertices, vertices + vertexCount, m_sceneObjects[0].m_vertices);
-    m_sceneObjects[0].m_vertexCount = vertexCount;
-
     // Initialize view and projection matrices
-    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(110.f), m_aspectRatio, 0.001f, 1000.0f);
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(50.f), m_aspectRatio, 0.1f, 1000.0f);
     XMStoreFloat4x4(&m_constants.proj, proj);
 
     XMMATRIX view = XMMatrixLookAtLH(
-        { 0.f, 0.f, -2.0f },
+        { 0.f, 0.f, -5.f },
         { 0.f, 0.f, 0.f },
         { 0.f, 1.f, 0.f }
     );
@@ -256,21 +245,14 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
     ComPtr<ID3DBlob> vertexShader;
     ComPtr<ID3DBlob> pixelShader;
 
-#if defined(_DEBUG)
-    // Enable better shader debugging with the graphics debugging tools.
-    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-    UINT compileFlags = 0;
-#endif
-
-    ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(GetAssetFullPath(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+    CompileShader(L"shaders.hlsl", "VSMain", "vs_5_0", vertexShader);
+    CompileShader(L"shaders.hlsl", "PSMain", "ps_5_0", pixelShader);
 
     // Define the vertex input layout.
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 
     // Describe and create the graphics pipeline state object (PSO).
@@ -289,6 +271,28 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     psoDesc.SampleDesc.Count = 1;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
+}
+
+void Renderer::CompileShader(const LPCWSTR fname, const LPCSTR entryPoint, const LPCSTR target, ComPtr<ID3DBlob>& compiledShader) {
+#if defined(_DEBUG)
+    // Enable better shader debugging with the graphics debugging tools.
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+    UINT compileFlags = 0;
+#endif
+    // Taken from https://docs.microsoft.com/en-us/windows/desktop/direct3d11/how-to--compile-a-shader
+    ID3DBlob* errorMessages;
+    HRESULT hr = D3DCompileFromFile(GetAssetFullPath(fname).c_str(), nullptr, nullptr, entryPoint, target, compileFlags, 0, &compiledShader, &errorMessages);
+    if (FAILED(hr)) {
+        if (errorMessages) {
+            OutputDebugStringA((char*)errorMessages->GetBufferPointer());
+            errorMessages->Release();
+        }
+        if (compiledShader) {
+            compiledShader->Release();
+        }
+        throw HrException(hr);
+    }
 }
 
 void Renderer::CreateGlobalConstants(const ComPtr<ID3D12Device>& device) {

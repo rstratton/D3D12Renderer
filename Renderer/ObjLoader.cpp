@@ -15,18 +15,12 @@ Vertex ObjLoader::vertBundleToVert(ObjVertBundle bundle) {
     v.position.y = bundle.vertex.y;
     v.position.z = bundle.vertex.z;
 
-    v.color.x = 0.f;
-    v.color.y = 0.f;
-    v.color.z = 0.f;
-    v.color.w = 0.f;
-#if USE_NORMALS_AND_TEXCOORDS
     v.normal.x = bundle.normal.x;
     v.normal.y = bundle.normal.y;
     v.normal.z = bundle.normal.z;
 
-    v.texCoord.x = bundle.texCoord.u;
-    v.texCoord.y = bundle.texCoord.v;
-#endif
+    // v.texCoord.x = bundle.texCoord.u;
+    // v.texCoord.y = bundle.texCoord.v;
     return v;
 }
 

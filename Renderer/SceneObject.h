@@ -6,7 +6,7 @@ using namespace DirectX;
 
 struct Vertex {
     XMFLOAT3 position;
-    XMFLOAT4 color;
+    XMFLOAT3 normal;
 };
 
 class SceneObject

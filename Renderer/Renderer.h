@@ -80,6 +80,7 @@ private:
     void CreateRootSignature(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12RootSignature>& rootSignature);
     D3D_ROOT_SIGNATURE_VERSION GetRootSignatureVersion(_In_ const ComPtr<ID3D12Device>& device);
     void CreatePSO(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12RootSignature>& rootSignature, _Out_ ComPtr<ID3D12PipelineState>& pipelineState);
+    void CompileShader(_In_ const LPCWSTR fname, _In_ const LPCSTR entryPoint, _In_ const LPCSTR target, _Out_ ComPtr<ID3DBlob>& compiledShader);
     void CreateGlobalConstants(_In_ const ComPtr<ID3D12Device>& device);
 
     void PopulateCommandList();
