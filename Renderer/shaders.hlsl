@@ -24,15 +24,15 @@ struct PSInput
     float4 normal : NORMAL;
 };
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL)
+PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL)
 {
     PSInput result;
 
     float4x4 mvMatrix = mul(model, view);
     float4x4 mvpMatrix = mul(mvMatrix, proj);
-    result.position = mul(position, mvpMatrix);
+    result.position = mul(float4(position, 1.f), mvpMatrix);
 
-    result.normal = normal;
+    result.normal = float4(normal, 1.f);
 
     return result;
 }
