@@ -22,6 +22,11 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
+struct Light {
+    XMFLOAT3 direction;
+    XMFLOAT3 color;
+};
+
 class Renderer : public DXApplication
 {
 public:
@@ -60,9 +65,15 @@ private:
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValue;
 
+    // Constants
     Constants m_constants;
     ComPtr<ID3D12Resource> m_constantBuffer;
     UINT8* m_pConstantBufferData;
+
+    // Lights
+    Light m_light;
+    ComPtr<ID3D12Resource> m_lightBuffer;
+    UINT8* m_pLightBufferData;
 
     std::vector<SceneObject> m_sceneObjects;
 

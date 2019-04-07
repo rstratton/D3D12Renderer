@@ -47,6 +47,12 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
         { 0.f, 1.f, 0.f }
     );
     XMStoreFloat4x4(&m_constants.view, view);
+
+    // Initialize lights
+    m_light = {
+        { -1.f, -1.f, 1.f },
+        {  0.5f, 1.f, 0.5f }
+    };
 }
 
 void Renderer::OnInit()
@@ -204,20 +210,21 @@ void Renderer::CreateFence(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Fence>& fe
 void Renderer::CreateRootSignature(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignature>& rootSignature)
 {
     CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-    CD3DX12_ROOT_PARAMETER1 rootParameters[2];
+    CD3DX12_ROOT_PARAMETER1 rootParameters[3];
 
     rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);
 
     ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
     rootParameters[1].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
 
+    rootParameters[2].InitAsConstantBufferView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
+
     // Allow input layout and deny uneccessary access to certain pipeline stages.
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
@@ -307,6 +314,16 @@ void Renderer::CreateGlobalConstants(const ComPtr<ID3D12Device>& device) {
 
     CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
     ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pConstantBufferData)));
+
+    ThrowIfFailed(device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+        D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Buffer(1024 * 64),
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&m_lightBuffer)));
+
+    ThrowIfFailed(m_lightBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pLightBufferData)));
 }
 
 // Update frame-based values.
@@ -373,6 +390,7 @@ void Renderer::PopulateCommandList()
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootConstantBufferView(2, m_lightBuffer->GetGPUVirtualAddress());
 
     // Upload latest global constants
     Constants constants;
@@ -381,6 +399,9 @@ void Renderer::PopulateCommandList()
     XMStoreFloat4x4(&constants.view, view);
     XMStoreFloat4x4(&constants.proj, proj);
     memcpy(m_pConstantBufferData, &constants, sizeof(constants));
+
+    // Upload lighting data
+    memcpy(m_pLightBufferData, &m_light, sizeof(m_light));
 
     for (int i = 0; i < m_sceneObjects.size(); ++i) {
         auto& sceneObject = m_sceneObjects[i];
