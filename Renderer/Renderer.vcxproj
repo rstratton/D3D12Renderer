@@ -64,7 +64,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
     </Link>
     <CustomBuildStep>
@@ -115,6 +115,7 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ImageLoader.h" />
     <ClInclude Include="ObjLoader.h" />
     <ClInclude Include="SceneObject.h" />
     <ClInclude Include="Win32Application.h" />
@@ -125,6 +126,7 @@
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ImageLoader.cpp" />
     <ClCompile Include="ObjLoader.cpp" />
     <ClCompile Include="SceneObject.cpp" />
     <ClCompile Include="Win32Application.cpp" />

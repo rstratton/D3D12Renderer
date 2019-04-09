@@ -19,8 +19,8 @@ Vertex ObjLoader::vertBundleToVert(ObjVertBundle bundle) {
     v.normal.y = bundle.normal.y;
     v.normal.z = bundle.normal.z;
 
-    // v.texCoord.x = bundle.texCoord.u;
-    // v.texCoord.y = bundle.texCoord.v;
+    v.texCoord.x = bundle.texCoord.u;
+    v.texCoord.y = bundle.texCoord.v;
     return v;
 }
 

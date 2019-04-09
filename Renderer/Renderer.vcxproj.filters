@@ -22,6 +22,7 @@
     <ClCompile Include="ObjLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ImageLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Renderer.h">
@@ -48,6 +49,7 @@
     <ClInclude Include="ObjLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ImageLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">

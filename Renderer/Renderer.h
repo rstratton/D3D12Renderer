@@ -42,7 +42,6 @@ public:
         XMFLOAT4X4 proj;
     };
 
-private:
     static const UINT FrameCount = 2;
 
     // Pipeline objects.

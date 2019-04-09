@@ -32,5 +32,6 @@
 #include <sstream>
 #include <wrl.h>
 #include <shellapi.h>
+#include <gdiplus.h>
 
 #include "DXApplication.h"

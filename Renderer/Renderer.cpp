@@ -20,6 +20,11 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     m_rect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height))
 {
+    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+    ULONG_PTR gdiplusToken;
+    // Initialize GDI+.
+    Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
     SceneObject so1;
     m_sceneObjects.push_back(so1);
 
@@ -184,8 +189,20 @@ void Renderer::LoadAssets()
         sceneObject.UploadVertices(m_device);
     }
 
+    // Create command list for recording memory uploads
+    ComPtr<ID3D12GraphicsCommandList> commandList;
+    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&commandList)));
+
+    m_sceneObjects[0].LoadTexture(m_device, commandList, L"Resources\\sphere.bmp");
+    m_sceneObjects[1].LoadTexture(m_device, commandList, L"Resources\\dodecahedron.bmp");
+
     CreateGlobalConstants(m_device);
-    // TODO: the hello triangle sample inserts a WaitForPreviousFrame here, is that necessary?  
+
+    // Close the command list and execute it to begin the initial GPU setup.
+    ThrowIfFailed(commandList->Close());
+    ID3D12CommandList* ppCommandLists[] = { commandList.Get() };
+    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    WaitForPreviousFrame();
 }
 
 void Renderer::CreateCommandList(ComPtr<ID3D12Device>& device, ComPtr<ID3D12PipelineState>& pipelineState, ComPtr<ID3D12CommandAllocator>& commandAllocator, ComPtr<ID3D12GraphicsCommandList>& commandList) {
@@ -209,8 +226,8 @@ void Renderer::CreateFence(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Fence>& fe
 
 void Renderer::CreateRootSignature(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignature>& rootSignature)
 {
-    CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-    CD3DX12_ROOT_PARAMETER1 rootParameters[3];
+    CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
+    CD3DX12_ROOT_PARAMETER1 rootParameters[5];
 
     rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);
 
@@ -218,6 +235,26 @@ void Renderer::CreateRootSignature(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Ro
     rootParameters[1].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
 
     rootParameters[2].InitAsConstantBufferView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+    rootParameters[3].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
+
+    rootParameters[4].InitAsConstants(1, 3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    D3D12_STATIC_SAMPLER_DESC sampler = {};
+    sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+    sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    sampler.MipLODBias = 0;
+    sampler.MaxAnisotropy = 0;
+    sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+    sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    sampler.MinLOD = 0.0f;
+    sampler.MaxLOD = D3D12_FLOAT32_MAX;
+    sampler.ShaderRegister = 0;
+    sampler.RegisterSpace = 0;
+    sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     // Allow input layout and deny uneccessary access to certain pipeline stages.
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -227,7 +264,7 @@ void Renderer::CreateRootSignature(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Ro
         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
+    rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 1, &sampler, rootSignatureFlags);
 
     ComPtr<ID3DBlob> signature;
     ComPtr<ID3DBlob> error;
@@ -259,7 +296,8 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 
     // Describe and create the graphics pipeline state object (PSO).
@@ -411,7 +449,18 @@ void Renderer::PopulateCommandList()
         ID3D12DescriptorHeap* ppHeaps[] = { sceneObject.m_descriptorHeap.Get() };
         m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
+        int shaderFlags = 0;
+
+        if (sceneObject.m_hasTexture) {
+            shaderFlags |= 1;
+        };
+
         m_commandList->SetGraphicsRootDescriptorTable(1, sceneObject.m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+        m_commandList->SetGraphicsRoot32BitConstant(4, shaderFlags, 0);
+        if (sceneObject.m_hasTexture) {
+            CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(sceneObject.m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+            m_commandList->SetGraphicsRootDescriptorTable(3, srvHandle);
+        }
 
         // Record commands.
         m_commandList->IASetVertexBuffers(0, 1, &(sceneObject.m_vertexBufferView));
