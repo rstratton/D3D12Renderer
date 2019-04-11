@@ -50,6 +50,8 @@ public:
     ComPtr<IDXGISwapChain3> m_swapChain;
     ComPtr<ID3D12Device> m_device;
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
+    ComPtr<ID3D12Resource> m_depthStencilBuffer;
+    ComPtr<ID3D12DescriptorHeap> m_depthStencilDescriptorHeap;
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
@@ -82,7 +84,9 @@ public:
     void CreateCommandQueue(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12CommandQueue>& commandQueue);
     void CreateSwapChain(_In_ ComPtr<IDXGIFactory4> &factory, _Out_ ComPtr<IDXGISwapChain3>& swapChain, _Out_ UINT& frameIndex);
     void CreateRTVDescriptorHeap(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12DescriptorHeap>& rtvHeap, _Out_ UINT& rtvDescriptorSize);
+    void CreateDepthStencilDescriptorHeap(_In_ ComPtr<ID3D12Device>& device, _Out_ ComPtr<ID3D12DescriptorHeap>& dsHeap);
     void CreateRTVs(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12DescriptorHeap>& rtvHeap, _In_ ComPtr<IDXGISwapChain3>& swapChain, UINT& rtvDescriptorSize, _Out_ ComPtr<ID3D12Resource>* renderTargets);
+    void CreateDepthStencilBuffer(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12DescriptorHeap>& dsHeap, _Out_ ComPtr<ID3D12Resource>& depthStencilBuffer);
 
     void LoadAssets();
     void CreateCommandList(_In_ ComPtr<ID3D12Device>& device, _In_ ComPtr<ID3D12PipelineState>& pipelineState, _In_ ComPtr<ID3D12CommandAllocator>& commandAllocator, _Out_ ComPtr<ID3D12GraphicsCommandList>& commandList);
