@@ -76,6 +76,7 @@ void Renderer::LoadPipeline()
     CreateSwapChain(factory, m_swapChain, m_frameIndex);
     CreateRTVDescriptorHeap(m_device, m_rtvHeap, m_rtvDescriptorSize);
     CreateDepthStencilDescriptorHeap(m_device, m_depthStencilDescriptorHeap);
+    CreateMSAARenderTarget(m_device, m_textureMSAA);
     CreateRTVs(m_device, m_rtvHeap, m_swapChain, m_rtvDescriptorSize, m_renderTargets);
     CreateDepthStencilBuffer(m_device, m_depthStencilDescriptorHeap, m_depthStencilBuffer);
     ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
@@ -159,7 +160,7 @@ void Renderer::CreateSwapChain(ComPtr<IDXGIFactory4> &factory, ComPtr<IDXGISwapC
 
 void Renderer::CreateRTVDescriptorHeap(ComPtr<ID3D12Device>& device, ComPtr<ID3D12DescriptorHeap>& rtvHeap, UINT& rtvDescriptorSize) {
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-    rtvHeapDesc.NumDescriptors = FrameCount;
+    rtvHeapDesc.NumDescriptors = FrameCount + 1; // 1 backbuffer per frame + 1 MSAA RT
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     ThrowIfFailed(device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
@@ -184,27 +185,70 @@ void Renderer::CreateRTVs(ComPtr<ID3D12Device>& device, ComPtr<ID3D12DescriptorH
         device->CreateRenderTargetView(renderTargets[n].Get(), nullptr, rtvHandle);
         rtvHandle.Offset(1, rtvDescriptorSize);
     }
+
+    D3D12_RENDER_TARGET_VIEW_DESC  rtvDescMSAA = {};
+    rtvDescMSAA.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
+    rtvDescMSAA.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    device->CreateRenderTargetView(m_textureMSAA.Get(), &rtvDescMSAA, rtvHandle);
+}
+
+void Renderer::CreateMSAARenderTarget(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Resource>& textureMSAA) {
+    D3D12_RESOURCE_DESC textureDescMSAA = {};
+    textureDescMSAA.MipLevels = 1;
+    textureDescMSAA.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    textureDescMSAA.Width = m_width;
+    textureDescMSAA.Height = m_height;
+    textureDescMSAA.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    textureDescMSAA.DepthOrArraySize = 1;
+    textureDescMSAA.SampleDesc.Count = MSAA_SAMPLE_COUNT;
+    textureDescMSAA.SampleDesc.Quality = DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN;
+    textureDescMSAA.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+    // Assign an optimized clear value; more efficient
+    float clearColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    CD3DX12_CLEAR_VALUE clearValue(DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM, clearColor);
+
+    ThrowIfFailed(m_device->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        D3D12_HEAP_FLAG_NONE,
+        &textureDescMSAA,
+        D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+        &clearValue,
+        IID_PPV_ARGS(&textureMSAA)));
 }
 
 void Renderer::CreateDepthStencilBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12DescriptorHeap>& dsHeap, ComPtr<ID3D12Resource>& depthStencilBuffer) {
-    D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
-    depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
-    depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
+    // Create resource
+    D3D12_RESOURCE_DESC desc = {};
+    desc.MipLevels = 1;
+    desc.Format = DXGI_FORMAT_D32_FLOAT;
+    desc.Width = m_width;
+    desc.Height = m_height;
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    desc.DepthOrArraySize = 1;
+    desc.SampleDesc.Count = MSAA_SAMPLE_COUNT;
+    desc.SampleDesc.Quality = DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN;
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-    D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
-    depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-    depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
-    depthOptimizedClearValue.DepthStencil.Stencil = 0;
+    D3D12_CLEAR_VALUE clearValue = {};
+    clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    clearValue.DepthStencil.Depth = 1.0f;
+    clearValue.DepthStencil.Stencil = 0;
 
     ThrowIfFailed(device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, m_width, m_height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+        &desc,
         D3D12_RESOURCE_STATE_DEPTH_WRITE,
-        &depthOptimizedClearValue,
+        &clearValue,
         IID_PPV_ARGS(&depthStencilBuffer)
     ));
+
+    // Create resource view
+    D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
+    depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+    depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
 
     device->CreateDepthStencilView(depthStencilBuffer.Get(), &depthStencilDesc, dsHeap->GetCPUDescriptorHandleForHeapStart());
 }
@@ -333,13 +377,17 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 
+    CD3DX12_RASTERIZER_DESC rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+    rasterizerDesc.MultisampleEnable = TRUE;
+
     // Describe and create the graphics pipeline state object (PSO).
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
     psoDesc.InputLayout = { inputElementDescs, _countof(inputElementDescs) };
     psoDesc.pRootSignature = rootSignature.Get();
     psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
     psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
-    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.RasterizerState = rasterizerDesc;
     psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
@@ -347,7 +395,8 @@ void Renderer::CreatePSO(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignatur
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.NumRenderTargets = 1;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-    psoDesc.SampleDesc.Count = 1;
+    psoDesc.SampleDesc.Count = MSAA_SAMPLE_COUNT;
+    psoDesc.SampleDesc.Quality = DXGI_STANDARD_MULTISAMPLE_QUALITY_PATTERN;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
 }
 
@@ -451,10 +500,10 @@ void Renderer::PopulateCommandList()
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_rect);
 
-    // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    // Indicate that MSAA texture will be set as render target
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textureMSAA.Get(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), 2, m_rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_depthStencilDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
@@ -502,8 +551,10 @@ void Renderer::PopulateCommandList()
         m_commandList->DrawInstanced(sceneObject.m_vertexCount, 1, 0, 0);
     }
 
-    // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_textureMSAA.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST));
+    m_commandList->ResolveSubresource(m_renderTargets[m_frameIndex].Get(), D3D12CalcSubresource(0, 0, 0, 1, 1), m_textureMSAA.Get(), D3D12CalcSubresource(0, 0, 0, 1, 1), DXGI_FORMAT_R8G8B8A8_UNORM);
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_PRESENT));
 
     ThrowIfFailed(m_commandList->Close());
 }
