@@ -12,6 +12,8 @@
 #include "stdafx.h"
 #include "Renderer.h"
 #include "ObjLoader.h"
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     DXApplication(width, height, name),
@@ -31,9 +33,20 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     SceneObject so2;
     m_sceneObjects.push_back(so2);
 
+    // Try out tiny_obj_loader
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn;
+    std::string err;
+
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, "Resources\\sponza.obj", "", true)) {
+        OutputDebugStringW(L"Failed to parse .obj file");
+    }
+
     // Load scene object geometry
     ObjLoader::Load(L"Resources\\sphere.obj", &m_sceneObjects[0].m_vertices, m_sceneObjects[0].m_vertexCount);
-    ObjLoader::Load(L"Resources\\dodecahedron.obj", &m_sceneObjects[1].m_vertices, m_sceneObjects[1].m_vertexCount);
+    ObjLoader::Load(L"Resources\\sponza.obj", &m_sceneObjects[1].m_vertices, m_sceneObjects[1].m_vertexCount);
 
     // Init scene object constants
     XMMATRIX model = XMMatrixTranslation(0.f, 0.f, 0.f);
