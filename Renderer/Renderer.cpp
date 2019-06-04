@@ -12,15 +12,15 @@
 #include "stdafx.h"
 #include "Renderer.h"
 #include "ObjLoader.h"
-#define TINYOBJLOADER_IMPLEMENTATION
-#include "tiny_obj_loader.h"
+#include <iostream>
 
 Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     DXApplication(width, height, name),
     m_frameIndex(0),
     m_rtvDescriptorSize(0),
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
-    m_rect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height))
+    m_rect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
+    m_camera({ 0.f, 0.f, -5.f})
 {
     Gdiplus::GdiplusStartupInput gdiplusStartupInput;
     ULONG_PTR gdiplusToken;
@@ -34,19 +34,11 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_sceneObjects.push_back(so2);
 
     // Try out tiny_obj_loader
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn;
-    std::string err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, "Resources\\sponza.obj", "", true)) {
-        OutputDebugStringW(L"Failed to parse .obj file");
-    }
+    ObjLoader::LoadTinyObj("Resources\\sponza.obj", &m_sceneObjects[0].m_vertices, m_sceneObjects[0].m_vertexCount);
 
     // Load scene object geometry
-    ObjLoader::Load(L"Resources\\sphere.obj", &m_sceneObjects[0].m_vertices, m_sceneObjects[0].m_vertexCount);
-    ObjLoader::Load(L"Resources\\sponza.obj", &m_sceneObjects[1].m_vertices, m_sceneObjects[1].m_vertexCount);
+    //ObjLoader::Load(L"Resources\\sphere.obj", &m_sceneObjects[0].m_vertices, m_sceneObjects[0].m_vertexCount);
+    ObjLoader::Load(L"Resources\\dodecahedron.obj", &m_sceneObjects[1].m_vertices, m_sceneObjects[1].m_vertexCount);
 
     // Init scene object constants
     XMMATRIX model = XMMatrixTranslation(0.f, 0.f, 0.f);
@@ -60,7 +52,7 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     XMStoreFloat4x4(&m_constants.proj, proj);
 
     XMMATRIX view = XMMatrixLookAtLH(
-        { 0.f, 0.f, -5.f },
+        { 0.f, 5.f, -1.f },
         { 0.f, 0.f, 0.f },
         { 0.f, 1.f, 0.f }
     );
@@ -68,9 +60,51 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
 
     // Initialize lights
     m_light = {
-        { -1.f, -1.f, 1.f },
+        { 0.f, -1.f, 0.f },
         {  0.5f, 1.f, 0.5f }
     };
+}
+
+void Renderer::OnKeyDown(UINT8 key) {
+    switch (key) {
+        case 87: // w
+            m_camera.translateForward();
+            break;
+        case 65: // a
+            m_camera.translateLeft();
+            break;
+        case 83: // s
+            m_camera.translateBackward();
+            break;
+        case 68: // d
+            m_camera.translateRight();
+            break;
+        case 81: // q
+            m_camera.translateUp();
+            break;
+        case 69: // e
+            m_camera.translateDown();
+            break;
+        case 72: // h
+            m_camera.rotateLeft();
+            break;
+        case 74: // j
+            m_camera.rotateDown();
+            break;
+        case 75: // k
+            m_camera.rotateUp();
+            break;
+        case 76: // l
+            m_camera.rotateRight();
+            break;
+    }
+
+    char keyStr[8];
+    sprintf_s(keyStr, "%d\n", key);
+    OutputDebugStringA(keyStr);
+}
+
+void Renderer::OnKeyUp(UINT8 key) {
 }
 
 void Renderer::OnInit()
@@ -462,12 +496,12 @@ void Renderer::CreateGlobalConstants(const ComPtr<ID3D12Device>& device) {
 // Update frame-based values.
 void Renderer::OnUpdate()
 {
-    XMMATRIX offset = XMMatrixTranslation(0.01f, 0.0f, 0.0f);
-    XMMATRIX model = XMLoadFloat4x4(&m_sceneObjects[0].m_constants.model);
-    XMStoreFloat4x4(&m_sceneObjects[0].m_constants.model, model * offset);
+    //XMMATRIX offset = XMMatrixTranslation(0.01f, 0.0f, 0.0f);
+    //XMMATRIX model = XMLoadFloat4x4(&m_sceneObjects[0].m_constants.model);
+    //XMStoreFloat4x4(&m_sceneObjects[0].m_constants.model, model * offset);
 
     XMMATRIX rotation = XMMatrixRotationY(0.01f);
-    model = XMLoadFloat4x4(&m_sceneObjects[1].m_constants.model);
+    XMMATRIX model = XMLoadFloat4x4(&m_sceneObjects[1].m_constants.model);
     XMStoreFloat4x4(&m_sceneObjects[1].m_constants.model, model * rotation);
 }
 
@@ -529,7 +563,7 @@ void Renderer::PopulateCommandList()
 
     // Upload latest global constants
     Constants constants;
-    XMMATRIX view = XMMatrixTranspose(XMLoadFloat4x4(&m_constants.view));
+    XMMATRIX view = XMMatrixTranspose(XMLoadFloat4x4(&m_camera.getViewMatrix()));
     XMMATRIX proj = XMMatrixTranspose(XMLoadFloat4x4(&m_constants.proj));
     XMStoreFloat4x4(&constants.view, view);
     XMStoreFloat4x4(&constants.proj, proj);

@@ -29,6 +29,7 @@ class ObjLoader
 {
 public:
     static void Load(const wstring fname, Vertex** vb, UINT& vbSize);
+    static void LoadTinyObj(const string fname, Vertex** vb, UINT& vbSize);
 private:
     static Vertex vertBundleToVert(ObjVertBundle bundle);
     static void objToBuffers(vector<ObjFace> faces, Vertex** vb, short** ib, UINT& vbSize, UINT& ibSize);

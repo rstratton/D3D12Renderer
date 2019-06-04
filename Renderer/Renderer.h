@@ -12,6 +12,8 @@
 #pragma once
 
 #include "SceneObject.h"
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #define MSAA_SAMPLE_COUNT 8
 
@@ -29,6 +31,132 @@ struct Light {
     XMFLOAT3 color;
 };
 
+class Camera {
+public:
+    XMFLOAT3 position;
+    float azimuthalAngle;
+    float polarAngle;
+    
+    const float POS_DELTA = 0.10f;
+    const float ROT_DELTA = 2.f;
+
+    Camera(XMFLOAT3 pos) : position(pos), azimuthalAngle(0.f), polarAngle(90.f) {}
+
+    XMFLOAT4X4 getViewMatrix() {
+        XMVECTOR pos = XMLoadFloat3(&position);
+        XMFLOAT3 lookDirection = getLookDirection();
+        XMVECTOR lookDir = XMLoadFloat3(&lookDirection);
+        XMFLOAT4X4 result;
+        XMStoreFloat4x4(&result, XMMatrixLookAtLH(pos, pos + lookDir, { 0.f, 1.f, 0.f }));
+        return result;
+    }
+
+    XMFLOAT3 getLookDirection() {
+        float radiansPolar = (polarAngle * M_PI) / 180.f;
+        float radiansAzimuthal = (azimuthalAngle * M_PI) / 180.f;
+        float cosPolar = cos(radiansPolar);
+        float sinPolar = sin(radiansPolar);
+        float cosAzimuthal = cos(radiansAzimuthal);
+        float sinAzimuthal = sin(radiansAzimuthal);
+
+        return XMFLOAT3{
+            sinPolar * cosAzimuthal,
+            cosPolar,
+            sinPolar * sinAzimuthal
+        };
+    }
+
+    XMFLOAT3 getHorizontalLookDirection() {
+        float radiansAzimuthal = (azimuthalAngle * M_PI) / 180.f;
+
+        return XMFLOAT3{
+            cos(radiansAzimuthal),
+            0.f,
+            sin(radiansAzimuthal)
+        };
+    }
+
+    void translateUp() {
+        position.y += POS_DELTA;
+    }
+
+    void translateDown() {
+        position.y -= POS_DELTA;
+    }
+
+    void translateForward() {
+        XMVECTOR pos = XMLoadFloat3(&position);
+        XMFLOAT3 lookDirection = getHorizontalLookDirection();
+        XMVECTOR lookDir = XMLoadFloat3(&lookDirection);
+        XMVECTOR newPos = pos + (lookDir * POS_DELTA);
+        XMStoreFloat3(&position, newPos);
+    }
+
+    void translateBackward() {
+        XMVECTOR pos = XMLoadFloat3(&position);
+        XMFLOAT3 lookDirection = getHorizontalLookDirection();
+        XMVECTOR lookDir = XMLoadFloat3(&lookDirection);
+        XMVECTOR newPos = pos - (lookDir * POS_DELTA);
+        XMStoreFloat3(&position, newPos);
+    }
+
+    void translateLeft() {
+        XMVECTOR pos = XMLoadFloat3(&position);
+        XMFLOAT3 lookDirection = getLookDirection();
+        XMVECTOR lookDir = XMLoadFloat3(&lookDirection);
+        XMVECTOR up = { 0.f, 1.f, 0.f };
+        XMVECTOR right = XMVector3Normalize(XMVector3Cross(up, lookDir));
+        XMVECTOR newPos = pos - (right * POS_DELTA);
+        XMStoreFloat3(&position, newPos);
+    }
+
+    void translateRight() {
+        XMVECTOR pos = XMLoadFloat3(&position);
+        XMFLOAT3 lookDirection = getLookDirection();
+        XMVECTOR lookDir = XMLoadFloat3(&lookDirection);
+        XMVECTOR up = { 0.f, 1.f, 0.f };
+        XMVECTOR right = XMVector3Normalize(XMVector3Cross(up, lookDir));
+        XMVECTOR newPos = pos + (right * POS_DELTA);
+        XMStoreFloat3(&position, newPos);
+    }
+
+    void rotateLeft() {
+        azimuthalAngle += ROT_DELTA;
+        constrainAzimuthalAngle();
+    }
+
+    void rotateRight() {
+        azimuthalAngle -= ROT_DELTA;
+        constrainAzimuthalAngle();
+    }
+
+    void constrainAzimuthalAngle() {
+        if (azimuthalAngle < 0.f) {
+            azimuthalAngle += 360.f;
+        } else if (azimuthalAngle > 360.f) {
+            azimuthalAngle -= 360.f;
+        }
+    }
+
+    void rotateUp() {
+        polarAngle -= ROT_DELTA;
+        constrainPolarAngle();
+    }
+
+    void rotateDown() {
+        polarAngle += ROT_DELTA;
+        constrainPolarAngle();
+    }
+
+    void constrainPolarAngle() {
+        if (polarAngle <= 0.f) {
+            polarAngle = ROT_DELTA;
+        } else if (polarAngle >= 180.f) {
+            polarAngle = 180.f - ROT_DELTA;
+        }
+    }
+};
+
 class Renderer : public DXApplication
 {
 public:
@@ -38,6 +166,9 @@ public:
     virtual void OnUpdate();
     virtual void OnRender();
     virtual void OnDestroy();
+
+    virtual void OnKeyDown(UINT8 key);
+    virtual void OnKeyUp(UINT8 key);
 
     struct Constants {
         XMFLOAT4X4 view;
@@ -73,6 +204,8 @@ public:
     Constants m_constants;
     ComPtr<ID3D12Resource> m_constantBuffer;
     UINT8* m_pConstantBufferData;
+
+    Camera m_camera;
 
     // Lights
     Light m_light;

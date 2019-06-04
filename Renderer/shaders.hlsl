@@ -58,14 +58,20 @@ SamplerState g_sampler : register(s0);
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float4 surfaceColor;
+    // return abs(input.wsNormal);
+    //float4 surfaceColor;
 
-    if (flags & SHADER_FLAGS_HAS_TEXTURE) {
-        surfaceColor = g_texture.Sample(g_sampler, input.texCoord);
-    }
-    else {
-        surfaceColor = float4(1.f, 1.f, 1.f, 0.f);
-    }
+    //if (flags & SHADER_FLAGS_HAS_TEXTURE) {
+    //    surfaceColor = g_texture.Sample(g_sampler, input.texCoord);
+    //}
+    //else {
+    //    surfaceColor = float4(1.f, 1.f, 1.f, 0.f);
+    //}
+
+    //float normalDotLight = max(0, dot(input.wsNormal, -float4(direction, 0.f)));
+    //return surfaceColor * float4(color, 0.f) * normalDotLight;
+
+    float4 surfaceColor = float4(1.f, 1.f, 1.f, 0.f);
 
     float normalDotLight = max(0, dot(input.wsNormal, -float4(direction, 0.f)));
     return surfaceColor * float4(color, 0.f) * normalDotLight;

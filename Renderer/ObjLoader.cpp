@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "ObjLoader.h"
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 void ObjLoader::Load(const wstring fname, Vertex** vb, UINT& vbCount) {
     UINT ibSize;
@@ -7,6 +9,81 @@ void ObjLoader::Load(const wstring fname, Vertex** vb, UINT& vbCount) {
 
     vector<ObjFace> faces = parseOBJ(fname);
     objToBuffers(faces, vb, &indexBuffer, vbCount, ibSize);
+}
+
+void ObjLoader::LoadTinyObj(const std::string fname, Vertex** vb, UINT& vbSize) {
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn;
+    std::string err;
+
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fname.c_str(), "", true)) {
+        OutputDebugStringA("Failed to parse .obj file");
+        exit(1);
+    }
+
+    if (!err.empty()) {
+        OutputDebugStringA(err.c_str());
+        exit(1);
+    }
+
+    if (!warn.empty()) {
+        OutputDebugStringA(warn.c_str());
+    }
+
+    // Pretty sure we can know up front how many vertices we need to allocate space for;
+    // could just build the raw array here instead of using a vector
+    std::vector<Vertex> vertices;
+
+    // Iterate over shapes
+    for (size_t s = 0; s < shapes.size(); ++s) {
+        size_t index_offset = 0;
+
+        // Iterate over faces
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); ++f) {
+            int fv = shapes[s].mesh.num_face_vertices[f];
+
+            // Iterate over face vertices
+            for (size_t v = 0; v < fv; ++v) {
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+
+                Vertex vert;
+                vert.position.x = attrib.vertices[3*idx.vertex_index+0];
+                vert.position.y = attrib.vertices[3*idx.vertex_index+1];
+                vert.position.z = attrib.vertices[3*idx.vertex_index+2];
+                //vert.normal.x = attrib.vertices[3*idx.normal_index+0];
+                //vert.normal.y = attrib.vertices[3*idx.normal_index+1];
+                //vert.normal.z = attrib.vertices[3*idx.normal_index+2];
+                vert.texCoord.x = attrib.vertices[3*idx.texcoord_index+0];
+                vert.texCoord.y = attrib.vertices[3*idx.texcoord_index+1];
+
+                vertices.push_back(vert);
+            }
+
+            XMVECTOR v1 = XMLoadFloat3(&vertices[vertices.size() - 3].position);
+            XMVECTOR v2 = XMLoadFloat3(&vertices[vertices.size() - 2].position);
+            XMVECTOR v3 = XMLoadFloat3(&vertices[vertices.size() - 1].position);
+
+            XMVECTOR side1 = v1 - v2;
+            XMVECTOR side2 = v3 - v2;
+            XMVECTOR normal = XMVector3Cross(side2, side1);
+
+            XMStoreFloat3(&vertices[vertices.size() - 3].normal, normal);
+            XMStoreFloat3(&vertices[vertices.size() - 2].normal, normal);
+            XMStoreFloat3(&vertices[vertices.size() - 1].normal, normal);
+
+            index_offset += fv;
+        }
+    }
+
+    *vb = new Vertex[vertices.size()];
+
+    for (int i = 0; i < vertices.size(); ++i) {
+        (*vb)[i] = vertices[i];
+    }
+
+    vbSize = vertices.size();
 }
 
 Vertex ObjLoader::vertBundleToVert(ObjVertBundle bundle) {
