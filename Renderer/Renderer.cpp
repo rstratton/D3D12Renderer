@@ -27,18 +27,12 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     // Initialize GDI+.
     Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 
-    SceneObject so1;
-    m_sceneObjects.push_back(so1);
-
-    SceneObject so2;
-    m_sceneObjects.push_back(so2);
-
-    // Try out tiny_obj_loader
-    ObjLoader::LoadTinyObj("Resources\\sponza.obj", &m_sceneObjects[0].m_vertices, m_sceneObjects[0].m_vertexCount);
+    // Reserve enough space for our objects
+    m_sceneObjects.resize(2);
 
     // Load scene object geometry
-    //ObjLoader::Load(L"Resources\\sphere.obj", &m_sceneObjects[0].m_vertices, m_sceneObjects[0].m_vertexCount);
-    ObjLoader::Load(L"Resources\\dodecahedron.obj", &m_sceneObjects[1].m_vertices, m_sceneObjects[1].m_vertexCount);
+    ObjLoader::Load("Resources\\sponza.obj", &m_sceneObjects[0].m_vertices, m_sceneObjects[0].m_vertexCount);
+    ObjLoader::Load("Resources\\dodecahedron.obj", &m_sceneObjects[1].m_vertices, m_sceneObjects[1].m_vertexCount);
 
     // Init scene object constants
     XMMATRIX model = XMMatrixTranslation(0.f, 0.f, 0.f);
@@ -47,16 +41,9 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     model = XMMatrixTranslation(0.f, 0.f, 0.f);
     XMStoreFloat4x4(&m_sceneObjects[1].m_constants.model, model);
 
-    // Initialize view and projection matrices
+    // Initialize projection matrix
     XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(50.f), m_aspectRatio, 0.1f, 1000.0f);
     XMStoreFloat4x4(&m_constants.proj, proj);
-
-    XMMATRIX view = XMMatrixLookAtLH(
-        { 0.f, 5.f, -1.f },
-        { 0.f, 0.f, 0.f },
-        { 0.f, 1.f, 0.f }
-    );
-    XMStoreFloat4x4(&m_constants.view, view);
 
     // Initialize lights
     m_light = {

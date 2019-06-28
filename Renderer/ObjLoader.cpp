@@ -3,15 +3,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-void ObjLoader::Load(const wstring fname, Vertex** vb, UINT& vbCount) {
-    UINT ibSize;
-    short* indexBuffer;
-
-    vector<ObjFace> faces = parseOBJ(fname);
-    objToBuffers(faces, vb, &indexBuffer, vbCount, ibSize);
-}
-
-void ObjLoader::LoadTinyObj(const std::string fname, Vertex** vb, UINT& vbSize) {
+void ObjLoader::Load(const std::string fname, Vertex** vb, UINT& vbSize) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
