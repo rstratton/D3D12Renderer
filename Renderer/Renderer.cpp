@@ -47,8 +47,8 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
 
     // Initialize lights
     m_light = {
-        { 0.f, -1.f, 0.f },
-        {  0.5f, 1.f, 0.5f }
+        { 0.f, -1.f, 0.f, 0.f },
+        { 1.f, 1.f, 1.f, 0.f }
     };
 }
 

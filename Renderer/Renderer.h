@@ -27,8 +27,8 @@ using namespace DirectX;
 using Microsoft::WRL::ComPtr;
 
 struct Light {
-    XMFLOAT3 direction;
-    XMFLOAT3 color;
+    XMFLOAT4 direction;
+    XMFLOAT4 color;
 };
 
 class Camera {

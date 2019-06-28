@@ -21,8 +21,8 @@ cbuffer SceneObjectConstants : register(b1) {
 };
 
 cbuffer Light : register(b2) {
-    float3 direction;
-    float3 color;
+    float4 direction;
+    float4 color;
 }
 
 cbuffer ShaderFlags : register(b3) {
@@ -73,6 +73,6 @@ float4 PSMain(PSInput input) : SV_TARGET
 
     float4 surfaceColor = float4(1.f, 1.f, 1.f, 0.f);
 
-    float normalDotLight = max(0, dot(input.wsNormal, -float4(direction, 0.f)));
-    return surfaceColor * float4(color, 0.f) * normalDotLight;
+    float normalDotLight = max(0, dot(input.wsNormal, -direction));
+    return surfaceColor * color * normalDotLight;
 }
