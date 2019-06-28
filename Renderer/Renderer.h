@@ -26,7 +26,9 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
-struct Light {
+static const int MAX_LIGHTS = 10;
+
+struct DirectionalLight {
     XMFLOAT4 direction;
     XMFLOAT4 color;
 };
@@ -208,7 +210,8 @@ public:
     Camera m_camera;
 
     // Lights
-    Light m_light;
+    DirectionalLight m_lights[MAX_LIGHTS];
+    int m_numLights;
     ComPtr<ID3D12Resource> m_lightBuffer;
     UINT8* m_pLightBufferData;
 

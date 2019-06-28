@@ -20,14 +20,13 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     m_rtvDescriptorSize(0),
     m_viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
     m_rect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
-    m_camera({ 0.f, 0.f, -5.f})
-{
+    m_camera({ 0.f, 0.f, -5.f }) {
     Gdiplus::GdiplusStartupInput gdiplusStartupInput;
     ULONG_PTR gdiplusToken;
     // Initialize GDI+.
     Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 
-    // Reserve enough space for our objects
+    // Create enough space for our objects
     m_sceneObjects.resize(2);
 
     // Load scene object geometry
@@ -46,9 +45,15 @@ Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     XMStoreFloat4x4(&m_constants.proj, proj);
 
     // Initialize lights
-    m_light = {
-        { 0.f, -1.f, 0.f, 0.f },
-        { 1.f, 1.f, 1.f, 0.f }
+    m_numLights = 2;
+    m_lights[0] = {
+        { 0.5f, -1.f, 0.f, 0.f },
+        { 0.8f, 0.0f, 0.0f, 0.f }
+    };
+
+    m_lights[1] = {
+        { -0.5f, -1.f, 0.f, 0.f },
+        { 0.0f, 0.8f, 0.0f, 0.f }
     };
 }
 
@@ -338,19 +343,27 @@ void Renderer::CreateFence(ComPtr<ID3D12Device>& device, ComPtr<ID3D12Fence>& fe
 void Renderer::CreateRootSignature(ComPtr<ID3D12Device>& device, ComPtr<ID3D12RootSignature>& rootSignature)
 {
     CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-    CD3DX12_ROOT_PARAMETER1 rootParameters[5];
+    CD3DX12_ROOT_PARAMETER1 rootParameters[6];
 
+    // Global constants (view, projection matrices)
     rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_VERTEX);
 
+    // SceneObject constants (model matrix)
     ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
     rootParameters[1].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
 
+    // Light data
     rootParameters[2].InitAsConstantBufferView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC, D3D12_SHADER_VISIBILITY_PIXEL);
 
+    // Texture data
     ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
     rootParameters[3].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
 
+    // Shader flags
     rootParameters[4].InitAsConstants(1, 3, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    // Light count
+    rootParameters[5].InitAsConstants(1, 4, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
     D3D12_STATIC_SAMPLER_DESC sampler = {};
     sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -547,6 +560,7 @@ void Renderer::PopulateCommandList()
     m_commandList->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer->GetGPUVirtualAddress());
     m_commandList->SetGraphicsRootConstantBufferView(2, m_lightBuffer->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRoot32BitConstant(5, m_numLights, 0);
 
     // Upload latest global constants
     Constants constants;
@@ -557,7 +571,7 @@ void Renderer::PopulateCommandList()
     memcpy(m_pConstantBufferData, &constants, sizeof(constants));
 
     // Upload lighting data
-    memcpy(m_pLightBufferData, &m_light, sizeof(m_light));
+    memcpy(m_pLightBufferData, &m_lights, sizeof(m_lights));
 
     for (int i = 0; i < m_sceneObjects.size(); ++i) {
         auto& sceneObject = m_sceneObjects[i];

@@ -47,8 +47,8 @@ void ObjLoader::Load(const std::string fname, Vertex** vb, UINT& vbSize) {
                 //vert.normal.x = attrib.vertices[3*idx.normal_index+0];
                 //vert.normal.y = attrib.vertices[3*idx.normal_index+1];
                 //vert.normal.z = attrib.vertices[3*idx.normal_index+2];
-                vert.texCoord.x = attrib.vertices[3*idx.texcoord_index+0];
-                vert.texCoord.y = attrib.vertices[3*idx.texcoord_index+1];
+                vert.texCoord.x = attrib.texcoords[2*idx.texcoord_index+0];
+                vert.texCoord.y = attrib.texcoords[2*idx.texcoord_index+1];
 
                 vertices.push_back(vert);
             }

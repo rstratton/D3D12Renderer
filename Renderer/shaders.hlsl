@@ -10,6 +10,7 @@
 //*********************************************************
 
 static const int SHADER_FLAGS_HAS_TEXTURE = 1 << 0;
+static const int MAX_LIGHTS = 10;
 
 cbuffer GlobalConstants : register(b0) {
     float4x4 view;
@@ -20,14 +21,22 @@ cbuffer SceneObjectConstants : register(b1) {
     float4x4 model;
 };
 
-cbuffer Light : register(b2) {
+struct DirectionalLight {
     float4 direction;
     float4 color;
+};
+
+cbuffer DirectionalLights : register(b2) {
+    DirectionalLight lights[MAX_LIGHTS];
+};
+
+cbuffer NumLights : register(b4) {
+    int numLights;
 }
 
 cbuffer ShaderFlags : register(b3) {
     int flags;
-}
+};
 
 struct PSInput
 {
@@ -71,8 +80,19 @@ float4 PSMain(PSInput input) : SV_TARGET
     //float normalDotLight = max(0, dot(input.wsNormal, -float4(direction, 0.f)));
     //return surfaceColor * float4(color, 0.f) * normalDotLight;
 
+    float4 result = float4(0.f, 0.f, 0.f, 0.f);
+
+    for (int i = 0; i < numLights; ++i) {
+        float normalDotLight = max(0, dot(input.wsNormal, -lights[i].direction));
+        float4 radianceFromLight = normalDotLight * lights[i].color;
+        result = result + radianceFromLight;
+    }
+
     float4 surfaceColor = float4(1.f, 1.f, 1.f, 0.f);
 
-    float normalDotLight = max(0, dot(input.wsNormal, -direction));
-    return surfaceColor * color * normalDotLight;
+    return result * surfaceColor;
+
+
+    //float normalDotLight = max(0, dot(input.wsNormal, -direction));
+    //return surfaceColor * color * normalDotLight;
 }
